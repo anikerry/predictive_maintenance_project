@@ -1,20 +1,30 @@
+from __future__ import annotations
+
+import os
+from pathlib import Path
+from typing import Optional, Protocol, Sequence, runtime_checkable
+
+import joblib
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-import joblib
-import pandas as pd
-import os
-from pathlib import Path
-from typing import Any, Optional, Protocol, Sequence, runtime_checkable
 
 app = FastAPI(
     title="Predictive Maintenance API",
-    description="Real-time inference API for predicting equipment failure.",
-    version="1.0.0"
+    version="1.0.0",
+    description="Predict machine failure risk from sensor inputs.",
 )
 
 BASE_DIR = Path(__file__).resolve().parent
-MODEL_PATH = BASE_DIR.parent / "models" / "rf_model.joblib"
+DEFAULT_MODEL_PATH = BASE_DIR.parent / "models" / "rf_model.joblib"
+MODEL_PATH = Path(os.getenv("MODEL_PATH", str(DEFAULT_MODEL_PATH)))
+
+
+@runtime_checkable
+class ModelProtocol(Protocol):
+    def predict(self, X: Sequence[Sequence[float]]) -> Sequence[int]: ...
+    def predict_proba(self, X: Sequence[Sequence[float]]) -> Sequence[Sequence[float]]: ...
+
 
 class SensorData(BaseModel):
     Air_temperature_K: float
@@ -29,33 +39,41 @@ class SensorData(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     @model_validator(mode="after")
-    def validate_machine_type(self):
+    def validate_machine_type(self) -> "SensorData":
         if (self.Type_L + self.Type_M + self.Type_H) != 1:
             raise ValueError("Exactly one of Type_L, Type_M, Type_H must be 1")
         return self
 
-def _load_model() -> Optional[object]:
+
+def _load_model() -> Optional[ModelProtocol]:
     if os.getenv("SKIP_MODEL_LOAD", "0") == "1":
         print("SKIP_MODEL_LOAD=1 -> skipping model load")
         return None
     try:
         loaded = joblib.load(MODEL_PATH)
         print(f"Model loaded successfully from {MODEL_PATH}")
-        return loaded
+        return loaded  # type: ignore[return-value]
     except Exception as e:
         print(f"ERROR: Could not load model from {MODEL_PATH}")
         print(f"Error details: {e}")
         return None
 
-@runtime_checkable
-class ModelProtocol(Protocol):
-    def predict(self, X: Sequence[Sequence[float]]) -> Sequence[int]: ...
-    def predict_proba(self, X: Sequence[Sequence[float]]) -> Sequence[Sequence[float]]: ...
 
 model: Optional[ModelProtocol] = _load_model()
 
+
+@app.get("/")
+def root() -> dict:
+    return {"message": "API is running"}
+
+
+@app.get("/health")
+def health() -> dict:
+    return {"status": "ok", "model_loaded": model is not None}
+
+
 @app.post("/predict")
-def predict(data: SensorData):
+def predict(data: SensorData) -> dict:
     if model is None:
         raise HTTPException(status_code=503, detail="Model not available")
 
@@ -70,18 +88,21 @@ def predict(data: SensorData):
         data.Type_H,
     ]]
 
-    pred = int(model.predict(features)[0])
+    try:
+        pred = int(model.predict(features)[0])
+        failure_probability = None
+        if hasattr(model, "predict_proba"):
+            probs = model.predict_proba(features)
+            failure_probability = float(probs[0][1])
 
-    proba = None
-    if hasattr(model, "predict_proba"):
-        probs = model.predict_proba(features)
-        proba = float(probs[0][1])
+        return {
+            "prediction": pred,
+            "status": "failure" if pred == 1 else "healthy",
+            "failure_probability": failure_probability,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Inference failed: {e}")
 
-    return {"prediction": pred, "failure_probability": proba}
-
-@app.get("/")
-async def root():
-    return {"message": "Predictive Maintenance API is running. Go to /docs to test it."}
 
 @app.get("/api-docs", response_class=HTMLResponse)
 async def api_docs():
