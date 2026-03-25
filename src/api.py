@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Optional, Protocol, Sequence, runtime_checkable
+from typing import Any, Optional, Protocol, Sequence, runtime_checkable
 
 import joblib
 from fastapi import FastAPI, HTTPException
@@ -36,7 +36,21 @@ class SensorData(BaseModel):
     Type_M: int = Field(ge=0, le=1)
     Type_H: int = Field(default=0, ge=0, le=1)
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra={
+            "example": {
+                "Air_temperature_K": 298.1,
+                "Process_temperature_K": 308.6,
+                "Rotational_speed_rpm": 1551.0,
+                "Torque_Nm": 42.8,
+                "Tool_wear_min": 0.0,
+                "Type_L": 0,
+                "Type_M": 1,
+                "Type_H": 0
+            }
+        },
+    )
 
     @model_validator(mode="after")
     def validate_machine_type(self) -> "SensorData":
@@ -45,12 +59,23 @@ class SensorData(BaseModel):
         return self
 
 
+model_features: Optional[list[str]] = None
+
 def _load_model() -> Optional[ModelProtocol]:
+    global model_features
     if os.getenv("SKIP_MODEL_LOAD", "0") == "1":
         print("SKIP_MODEL_LOAD=1 -> skipping model load")
         return None
     try:
         loaded = joblib.load(MODEL_PATH)
+
+        # Support both:
+        # 1) raw sklearn model
+        # 2) artifact dict: {"model": model, "features": [...]}
+        if isinstance(loaded, dict) and "model" in loaded:
+            model_features = list(loaded.get("features", [])) or None
+            loaded = loaded["model"]
+
         print(f"Model loaded successfully from {MODEL_PATH}")
         return loaded  # type: ignore[return-value]
     except Exception as e:
@@ -77,18 +102,38 @@ def predict(data: SensorData) -> dict:
     if model is None:
         raise HTTPException(status_code=503, detail="Model not available")
 
-    features = [[
-        data.Air_temperature_K,
-        data.Process_temperature_K,
-        data.Rotational_speed_rpm,
-        data.Torque_Nm,
-        data.Tool_wear_min,
-        data.Type_L,
-        data.Type_M,
-        data.Type_H,
-    ]]
+    # Raw inputs
+    values = {
+        "Air_temperature_K": data.Air_temperature_K,
+        "Process_temperature_K": data.Process_temperature_K,
+        "Rotational_speed_rpm": data.Rotational_speed_rpm,
+        "Torque_Nm": data.Torque_Nm,
+        "Tool_wear_min": data.Tool_wear_min,
+        "Type_L": data.Type_L,
+        "Type_M": data.Type_M,
+        "Type_H": data.Type_H,
+    }
+
+    # Derived features used by training notebook
+    values["Temp_diff_K"] = values["Process_temperature_K"] - values["Air_temperature_K"]
+    values["Power_W"] = values["Rotational_speed_rpm"] * values["Torque_Nm"]
 
     try:
+        if model_features:
+            features = [[float(values[f]) for f in model_features]]
+        else:
+            # fallback order
+            features = [[
+                values["Air_temperature_K"],
+                values["Process_temperature_K"],
+                values["Rotational_speed_rpm"],
+                values["Torque_Nm"],
+                values["Tool_wear_min"],
+                values["Type_L"],
+                values["Type_M"],
+                values["Type_H"],
+            ]]
+
         pred = int(model.predict(features)[0])
         failure_probability = None
         if hasattr(model, "predict_proba"):
@@ -100,6 +145,8 @@ def predict(data: SensorData) -> dict:
             "status": "failure" if pred == 1 else "healthy",
             "failure_probability": failure_probability,
         }
+    except KeyError as e:
+        raise HTTPException(status_code=500, detail=f"Feature mismatch in model artifact: missing {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Inference failed: {e}")
 

@@ -117,6 +117,12 @@ docker build -t predictive-maintenance-api:latest .
 docker run -d --name maintenance-api -p 8000:8000 predictive-maintenance-api:latest
 ```
 
+### Run API (PowerShell)
+```powershell
+cd "D:\GenAI Projects\predictive_maintenance_project"
+python -m uvicorn src.api:app --reload --app-dir .
+```
+
 ---
 
 ## API Endpoints
