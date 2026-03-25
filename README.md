@@ -35,7 +35,16 @@ This repository demonstrates a practical ML engineering pipeline:
 │   ├── ai4i2020_raw.csv
 │   └── processed_machine_data.csv
 ├── docs/
-│   └── api-documentation.md
+│   └── api-documentation.html
+├── figures/
+│   ├── class_distribution_imbalance.png
+│   ├── confusion_matrix.png
+│   ├── engineered_features_distribution.png
+│   ├── feature_correlation_matrix.png
+│   ├── feature_importances.png
+│   ├── raw_sensor_features_distribution.png
+│   ├── roc_and_precision_recall_curves.png
+│   └── train_vs_test_performance.png
 ├── models/
 │   └── rf_model.joblib
 ├── src/
@@ -71,6 +80,21 @@ This repository demonstrates a practical ML engineering pipeline:
 
 ---
 
+## Figures
+
+Notebook visualizations are exported automatically to `figures/` when plot cells are run.
+
+- `feature_correlation_matrix.png`
+- `engineered_features_distribution.png`
+- `raw_sensor_features_distribution.png`
+- `class_distribution_imbalance.png`
+- `confusion_matrix.png`
+- `train_vs_test_performance.png`
+- `roc_and_precision_recall_curves.png`
+- `feature_importances.png`
+
+---
+
 ## Prerequisites
 
 - Python 3.12+
@@ -94,7 +118,7 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 
 pytest tests/ -q
-uvicorn src.api:app --reload
+python -m uvicorn src.api:app --reload --app-dir .
 ```
 
 - Swagger UI: `http://127.0.0.1:8000/docs`
@@ -107,7 +131,7 @@ conda env create -f environment.yml
 conda activate pred_ml
 pip install -r requirements.txt
 pytest tests/ -q
-uvicorn src.api:app --host 0.0.0.0 --port 8000
+python -m uvicorn src.api:app --host 0.0.0.0 --port 8000 --app-dir .
 ```
 
 ### 3) Docker

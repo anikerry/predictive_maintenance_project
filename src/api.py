@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Any, Optional, Protocol, Sequence, runtime_checkable
+from typing import Any, Optional, Protocol, Sequence, runtime_checkable, cast
 
 import joblib
+import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -22,8 +23,8 @@ MODEL_PATH = Path(os.getenv("MODEL_PATH", str(DEFAULT_MODEL_PATH)))
 
 @runtime_checkable
 class ModelProtocol(Protocol):
-    def predict(self, X: Sequence[Sequence[float]]) -> Sequence[int]: ...
-    def predict_proba(self, X: Sequence[Sequence[float]]) -> Sequence[Sequence[float]]: ...
+    def predict(self, X: Any) -> Sequence[int]: ...
+    def predict_proba(self, X: Any) -> Sequence[Sequence[float]]: ...
 
 
 class SensorData(BaseModel):
@@ -102,7 +103,6 @@ def predict(data: SensorData) -> dict:
     if model is None:
         raise HTTPException(status_code=503, detail="Model not available")
 
-    # Raw inputs
     values = {
         "Air_temperature_K": data.Air_temperature_K,
         "Process_temperature_K": data.Process_temperature_K,
@@ -113,31 +113,28 @@ def predict(data: SensorData) -> dict:
         "Type_M": data.Type_M,
         "Type_H": data.Type_H,
     }
-
-    # Derived features used by training notebook
     values["Temp_diff_K"] = values["Process_temperature_K"] - values["Air_temperature_K"]
     values["Power_W"] = values["Rotational_speed_rpm"] * values["Torque_Nm"]
 
     try:
         if model_features:
-            features = [[float(values[f]) for f in model_features]]
+            cols = model_features
         else:
-            # fallback order
-            features = [[
-                values["Air_temperature_K"],
-                values["Process_temperature_K"],
-                values["Rotational_speed_rpm"],
-                values["Torque_Nm"],
-                values["Tool_wear_min"],
-                values["Type_L"],
-                values["Type_M"],
-                values["Type_H"],
-            ]]
+            feature_names = getattr(model, "feature_names_in_", None)
+            if feature_names is not None:
+                cols = list(cast(Sequence[str], feature_names))
+            else:
+                cols = [
+                    "Air_temperature_K", "Process_temperature_K", "Rotational_speed_rpm",
+                    "Torque_Nm", "Tool_wear_min", "Type_L", "Type_M", "Type_H",
+                ]
 
-        pred = int(model.predict(features)[0])
+        X = pd.DataFrame([[values[c] for c in cols]], columns=cols)
+
+        pred = int(model.predict(X)[0])
         failure_probability = None
         if hasattr(model, "predict_proba"):
-            probs = model.predict_proba(features)
+            probs = model.predict_proba(X)
             failure_probability = float(probs[0][1])
 
         return {
@@ -145,8 +142,6 @@ def predict(data: SensorData) -> dict:
             "status": "failure" if pred == 1 else "healthy",
             "failure_probability": failure_probability,
         }
-    except KeyError as e:
-        raise HTTPException(status_code=500, detail=f"Feature mismatch in model artifact: missing {e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Inference failed: {e}")
 
