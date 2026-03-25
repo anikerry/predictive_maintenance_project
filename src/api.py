@@ -18,14 +18,19 @@ features: list[str] | None = None
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "../models/rf_model.joblib")
 
-try:
-    artifact = joblib.load(MODEL_PATH)
-    model = artifact['model']
-    features = artifact['features']
-    print(f"Model loaded successfully from {MODEL_PATH}")
-except Exception as e:
-    print(f"ERROR: Could not load model from {MODEL_PATH}")
-    print(f"Error details: {e}")
+model = None
+SKIP_MODEL_LOAD = os.getenv("SKIP_MODEL_LOAD", "0") == "1"
+
+if not SKIP_MODEL_LOAD:
+    try:
+        artifact = joblib.load(MODEL_PATH)
+        model = artifact['model']
+        features = artifact['features']
+        print(f"Model loaded successfully from {MODEL_PATH}")
+    except Exception as e:
+        print(f"ERROR: Could not load model from {MODEL_PATH}")
+        print(f"Error details: {e}")
+        model = None
 
 class SensorData(BaseModel):
     Air_temperature_K: float
@@ -67,6 +72,9 @@ async def predict_failure(data: SensorData):
         input_dict['Power_W'] = input_dict['Rotational_speed_rpm'] * input_dict['Torque_Nm']
         
         input_df = pd.DataFrame([input_dict], columns=loaded_features)
+        
+        if model is None:
+            raise HTTPException(status_code=503, detail="Model not available")
         
         prediction = loaded_model.predict(input_df)[0]
         probability = loaded_model.predict_proba(input_df)[0][1]

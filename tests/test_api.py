@@ -1,5 +1,7 @@
 from fastapi.testclient import TestClient
 from src.api import app  # Imports your FastAPI app
+import pytest
+from httpx import ASGITransport, AsyncClient
 
 # Initialize the test client
 client = TestClient(app)
@@ -36,3 +38,12 @@ def test_predict_healthy_machine():
     # 3. Check if the probability is formatted correctly
     assert "%" in data["failure_probability"]
     assert data["sensor_data_processed"] is True
+
+@pytest.mark.anyio
+async def test_root():
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+    ) as client:
+        response = await client.get("/")
+    assert response.status_code == 200
