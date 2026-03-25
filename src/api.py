@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 import joblib
 import pandas as pd
@@ -11,12 +12,9 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# 1. Initialize variables globally so they always exist
 model: Any | None = None
 features: list[str] | None = None
 
-# 2. Use an absolute-like path trick to find the model reliably
-# This finds the directory api.py is in, then goes up one level to /models
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "../models/rf_model.joblib")
 
@@ -24,21 +22,19 @@ try:
     artifact = joblib.load(MODEL_PATH)
     model = artifact['model']
     features = artifact['features']
-    print(f"✅ Model loaded successfully from {MODEL_PATH}")
+    print(f"Model loaded successfully from {MODEL_PATH}")
 except Exception as e:
-    print(f"❌ CRITICAL ERROR: Could not load model from {MODEL_PATH}")
-    print(f"❌ Error details: {e}")
+    print(f"ERROR: Could not load model from {MODEL_PATH}")
+    print(f"Error details: {e}")
 
-# 3. Define the Input Data Schema using Pydantic
-# This ensures the API only accepts the exact data format we expect
 class SensorData(BaseModel):
     Air_temperature_K: float
     Process_temperature_K: float
     Rotational_speed_rpm: float
     Torque_Nm: float
     Tool_wear_min: float
-    Type_L: int  # 1 if Low quality, 0 otherwise
-    Type_M: int  # 1 if Medium quality, 0 otherwise
+    Type_L: int
+    Type_M: int
     
     class Config:
         json_schema_extra = {
@@ -53,7 +49,6 @@ class SensorData(BaseModel):
             }
         }
 
-# 4. Create the Prediction Endpoint
 @app.post("/predict")
 async def predict_failure(data: SensorData):
     try:
@@ -66,23 +61,18 @@ async def predict_failure(data: SensorData):
                 detail="Model is not available. Check server logs for load errors."
             )
 
-        # Convert incoming JSON payload to a dictionary
         input_dict = data.model_dump() if hasattr(data, "model_dump") else data.dict()
         
-        # Calculate our engineered features on the fly!
         input_dict['Temp_diff_K'] = input_dict['Process_temperature_K'] - input_dict['Air_temperature_K']
         input_dict['Power_W'] = input_dict['Rotational_speed_rpm'] * input_dict['Torque_Nm']
         
-        # Convert to a DataFrame in the exact column order the model expects
         input_df = pd.DataFrame([input_dict], columns=loaded_features)
         
-        # Make the prediction
         prediction = loaded_model.predict(input_df)[0]
-        probability = loaded_model.predict_proba(input_df)[0][1] # Probability of failure (Class 1)
+        probability = loaded_model.predict_proba(input_df)[0][1]
         
-        # Return the result
         return {
-            "machine_status": "Failure Predicted ⚠️" if prediction == 1 else "Healthy ✅",
+            "machine_status": "Failure Predicted" if prediction == 1 else "Healthy",
             "failure_probability": f"{probability * 100:.2f}%",
             "sensor_data_processed": True
         }
@@ -90,7 +80,28 @@ async def predict_failure(data: SensorData):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-# Health check endpoint
 @app.get("/")
 async def root():
     return {"message": "Predictive Maintenance API is running. Go to /docs to test it."}
+
+@app.get("/api-docs", response_class=HTMLResponse)
+async def api_docs():
+    """Serve interactive HTML API documentation."""
+    # Path to the HTML documentation file
+    docs_path = os.path.join(BASE_DIR, "../docs/api-documentation.html")
+    
+    try:
+        with open(docs_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    except FileNotFoundError:
+        # Fallback: return minimal HTML if file not found
+        return """
+        <html>
+            <head><title>API Documentation</title></head>
+            <body style="font-family: Arial; padding: 20px;">
+                <h1>Predictive Maintenance API</h1>
+                <p>Documentation file not found, but API is running!</p>
+                <p>Visit <a href="/docs">/docs</a> for interactive Swagger UI.</p>
+            </body>
+        </html>
+        """

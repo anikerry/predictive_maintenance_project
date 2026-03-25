@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predictive Maintenance API Documentation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .section {
+            margin-bottom: 40px;
+        }
+        
+        .section h2 {
+            color: #667eea;
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .endpoint {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        
+        .method {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-right: 10px;
+            color: white;
+            font-size: 0.9em;
+        }
+        
+        .post {
+            background: #28a745;
+        }
+        
+        .get {
+            background: #007bff;
+        }
+        
+        .path {
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 1.05em;
+            font-weight: bold;
+            color: #333;
+            margin-left: 10px;
+        }
+        
+        .code-block {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+        
+        .parameter {
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-left: 3px solid #764ba2;
+        }
+        
+        .parameter-name {
+            font-weight: bold;
+            color: #667eea;
+            font-family: 'Monaco', 'Courier New', monospace;
+        }
+        
+        .parameter-type {
+            color: #764ba2;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        
+        .required {
+            background: #fff3cd;
+            color: #856404;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            margin-left: 5px;
+        }
+        
+        .optional {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            margin-left: 5px;
+        }
+        
+        .description {
+            color: #666;
+            margin-top: 8px;
+            margin-left: 5px;
+        }
+        
+        .response {
+            margin: 20px 0;
+        }
+        
+        .status-200 {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .status-503 {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        
+        .example {
+            background: #f0f7ff;
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        
+        .example h4 {
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+        
+        .url-info {
+            background: #e7f3ff;
+            border-left: 4px solid #2c5aa0;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Courier New', monospace;
+        }
+        
+        .url-info strong {
+            color: #2c5aa0;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        th {
+            background: #667eea;
+            color: white;
+            font-weight: bold;
+        }
+        
+        tr:hover {
+            background: #f5f5f5;
+        }
+        
+        footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            border-top: 1px solid #ddd;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 5px 10px;
+            background: #667eea;
+            color: white;
+            border-radius: 20px;
+            font-size: 0.85em;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Predictive Maintenance API</h1>
+            <p>Real-time machine failure prediction from sensor data</p>
+        </header>
+        
+        <div class="content">
+            <!-- Base URL Section -->
+            <div class="section">
+                <h2>Base URL</h2>
+                <div class="url-info">
+                    <strong>Local:</strong> http://127.0.0.1:8000<br>
+                    <strong>Docker:</strong> http://localhost:8000<br>
+                    <strong>Interactive Docs:</strong> http://127.0.0.1:8000/docs
+                </div>
+            </div>
+            
+            <!-- Health Check -->
+            <div class="section">
+                <h2>Endpoints</h2>
+                
+                <!-- GET / -->
+                <div class="endpoint">
+                    <span class="method get">GET</span>
+                    <span class="path">/</span>
+                    <p style="margin-top: 10px; color: #666;">Health check - verifies API is running</p>
+                </div>
+                
+                <!-- POST /predict -->
+                <div class="endpoint">
+                    <span class="method post">POST</span>
+                    <span class="path">/predict</span>
+                    <p style="margin-top: 10px; color: #666;">Predict machine failure from sensor data</p>
+                </div>
+            </div>
+            
+            <!-- Request/Response Documentation -->
+            <div class="section">
+                <h2>POST /predict</h2>
+                <p style="margin-bottom: 20px; color: #666;">
+                    Accepts sensor telemetry and returns failure prediction with probability.
+                </p>
+                
+                <h3 style="color: #667eea; margin-top: 20px;">Request Parameters</h3>
+                <table>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Description</th>
+                    </tr>
+                    <tr>
+                        <td><code>Air_temperature_K</code></td>
+                        <td>float</td>
+                        <td><span class="required">Required</span></td>
+                        <td>Ambient air temperature in Kelvin</td>
+                    </tr>
+                    <tr>
+                        <td><code>Process_temperature_K</code></td>
+                        <td>float</td>
+                        <td><span class="required">Required</span></td>
+                        <td>Machine process temperature in Kelvin</td>
+                    </tr>
+                    <tr>
+                        <td><code>Rotational_speed_rpm</code></td>
+                        <td>float</td>
+                        <td><span class="required">Required</span></td>
+                        <td>Machine rotational speed in RPM</td>
+                    </tr>
+                    <tr>
+                        <td><code>Torque_Nm</code></td>
+                        <td>float</td>
+                        <td><span class="required">Required</span></td>
+                        <td>Machine torque in Newton-meters</td>
+                    </tr>
+                    <tr>
+                        <td><code>Tool_wear_min</code></td>
+                        <td>float</td>
+                        <td><span class="required">Required</span></td>
+                        <td>Tool wear in minutes</td>
+                    </tr>
+                    <tr>
+                        <td><code>Type_L</code></td>
+                        <td>int</td>
+                        <td><span class="required">Required</span></td>
+                        <td>Binary: 1 if Low quality, 0 otherwise</td>
+                    </tr>
+                    <tr>
+                        <td><code>Type_M</code></td>
+                        <td>int</td>
+                        <td><span class="required">Required</span></td>
+                        <td>Binary: 1 if Medium quality, 0 otherwise</td>
+                    </tr>
+                </table>
+                
+                <h3 style="color: #667eea; margin-top: 30px;">Example Request</h3>
+                <div class="example">
+                    <h4>cURL</h4>
+                    <div class="code-block">curl -X POST "http://127.0.0.1:8000/predict" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "Air_temperature_K": 298.1,
+    "Process_temperature_K": 308.6,
+    "Rotational_speed_rpm": 1551,
+    "Torque_Nm": 42.8,
+    "Tool_wear_min": 0,
+    "Type_L": 0,
+    "Type_M": 1
+  }'</div>
+                </div>
+                
+                <div class="example">
+                    <h4>Python (requests)</h4>
+                    <div class="code-block">import requests
+
+payload = {
+    "Air_temperature_K": 298.1,
+    "Process_temperature_K": 308.6,
+    "Rotational_speed_rpm": 1551,
+    "Torque_Nm": 42.8,
+    "Tool_wear_min": 0,
+    "Type_L": 0,
+    "Type_M": 1
+}
+
+response = requests.post(
+    "http://127.0.0.1:8000/predict",
+    json=payload
+)
+print(response.json())</div>
+                </div>
+                
+                <h3 style="color: #667eea; margin-top: 30px;">Response</h3>
+                
+                <div class="response">
+                    <h4 class="status-200">200 OK</h4>
+                    <p style="color: #666; margin-bottom: 10px;">Successful prediction</p>
+                    
+                    <div class="code-block">{
+  "machine_status": "Healthy",
+  "failure_probability": "0.00%",
+  "sensor_data_processed": true
+}</div>
+                    
+                    <div style="margin-top: 15px;">
+                        <p><strong>Response Fields:</strong></p>
+                        <ul style="margin-left: 20px; margin-top: 10px;">
+                            <li><code>machine_status</code> (string): "Healthy" or "Failure Predicted"</li>
+                            <li><code>failure_probability</code> (string): Percentage probability of failure (0-100%)</li>
+                            <li><code>sensor_data_processed</code> (boolean): Confirmation that data was processed</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="response">
+                    <h4 class="status-503">503 Service Unavailable</h4>
+                    <p style="color: #666; margin-bottom: 10px;">Model failed to load</p>
+                    
+                    <div class="code-block">{
+  "detail": "Model is not available. Check server logs for load errors."
+}</div>
+                </div>
+                
+                <div class="response">
+                    <h4 style="color: #dc3545; font-weight: bold;">400 Bad Request</h4>
+                    <p style="color: #666; margin-bottom: 10px;">Invalid input format or missing fields</p>
+                    
+                    <div class="code-block">{
+  "detail": "Error message describing the validation failure"
+}</div>
+                </div>
+            </div>
+            
+            <!-- Example Responses -->
+            <div class="section">
+                <h2>Example Scenarios</h2>
+                
+                <div class="example">
+                    <h4>Healthy Machine</h4>
+                    <p style="margin-bottom: 10px;">Normal operating conditions</p>
+                    <div class="code-block">{
+  "machine_status": "Healthy",
+  "failure_probability": "2.34%",
+  "sensor_data_processed": true
+}</div>
+                </div>
+                
+                <div class="example">
+                    <h4>Failure Predicted</h4>
+                    <p style="margin-bottom: 10px;">Anomalous sensor readings detected</p>
+                    <div class="code-block">{
+  "machine_status": "Failure Predicted",
+  "failure_probability": "87.65%",
+  "sensor_data_processed": true
+}</div>
+                </div>
+            </div>
+            
+            <!-- Model Information -->
+            <div class="section">
+                <h2>Model Details</h2>
+                <table>
+                    <tr>
+                        <th>Property</th>
+                        <th>Value</th>
+                    </tr>
+                    <tr>
+                        <td>Algorithm</td>
+                        <td>Random Forest Classifier</td>
+                    </tr>
+                    <tr>
+                        <td>N Estimators</td>
+                        <td>100 trees</td>
+                    </tr>
+                    <tr>
+                        <td>Class Imbalance Handling</td>
+                        <td>Balanced class weights</td>
+                    </tr>
+                    <tr>
+                        <td>Feature Engineering</td>
+                        <td>Temp_diff_K, Power_W computed at inference</td>
+                    </tr>
+                    <tr>
+                        <td>Precision (on test set)</td>
+                        <td>91%</td>
+                    </tr>
+                    <tr>
+                        <td>Avg Inference Time</td>
+                        <td>~0.07 ms per prediction</td>
+                    </tr>
+                </table>
+            </div>
+            
+            <!-- Feature Engineering -->
+            <div class="section">
+                <h2>Feature Engineering</h2>
+                <p style="margin-bottom: 20px; color: #666;">
+                    The model computes domain-specific features at inference time:
+                </p>
+                
+                <div class="code-block">Temp_diff_K = Process_temperature_K - Air_temperature_K
+Power_W = Rotational_speed_rpm × Torque_Nm</div>
+                
+                <p style="margin-top: 15px; color: #666;">
+                    These engineered features are computed at inference time from raw sensor inputs.
+                </p>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Predictive Maintenance API | Documentation Generated: 2026</p>
+            <p style="margin-top: 10px; color: #999; font-size: 0.9em;">
+                For live testing, visit: <strong>http://127.0.0.1:8000/docs</strong>
+            </p>
+        </footer>
+    </div>
+</body>
+</html>

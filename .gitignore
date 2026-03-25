@@ -1,0 +1,25 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# Notebook artifacts
+.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+venv/
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Runtime outputs
+*.log
+
+# Keep data files (CSV datasets are tracked for reproducibility)
+!data/
+!data/*.csv

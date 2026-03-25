@@ -1,52 +1,113 @@
-# 🏭 End-to-End Predictive Maintenance ML Pipeline
+# Predictive Maintenance ML Pipeline
 
-Predicting industrial equipment failure from streaming sensor data to eliminate unplanned downtime.
+End-to-end pipeline to predict machine failure from industrial sensor data and serve predictions through a FastAPI microservice.
 
 ![Python](https://img.shields.io/badge/Python-3.12-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.103-green)
 ![Scikit-Learn](https://img.shields.io/badge/scikit--learn-1.3-orange)
-![Docker](https://img.shields.io/badge/Docker-Ready-blue)
+![Docker](https://img.shields.io/badge/Docker-ready-blue)
 
-## 📌 Project Overview
-Unplanned downtime costs the manufacturing industry billions annually. This project provides an automated, end-to-end Machine Learning pipeline that ingests IoT sensor data (rotational speed, torque, tool wear, temperature), processes it, and predicts impending machine failures in real-time.
+## Overview
+This project uses the AI4I 2020 dataset from the UCI repository to:
+1. Fetch and clean sensor data.
+2. Engineer useful features such as `Temp_diff_K` and `Power_W`.
+3. Train a `RandomForestClassifier` to detect machine failure.
+4. Serve predictions via a FastAPI endpoint.
 
-By containerizing the prediction engine as a microservice using Docker, this architecture can be seamlessly deployed to edge devices on the factory floor or integrated into cloud dashboards used by reliability engineering teams.
+## Repository Structure
+```text
+.
+├── data/
+├── models/
+│   └── rf_model.joblib
+├── src/
+│   ├── api.py
+│   ├── etl.py
+│   └── train.ipynb
+├── Dockerfile
+├── requirements.txt
+└── README.md
+```
 
-## 🎯 Business Impact & Metrics
-* **Improved prediction accuracy by 12%** by engineering domain-specific features (e.g., calculating structural `Power_W` from rotational speed and torque) prior to model training.
-* **Pipeline automated:** Built a fully automated ETL pipeline that extracts the official AI4I 2020 dataset from the UCI Repository, cleans it, and prevents data leakage.
-* **Sub-millisecond Latency:** Achieved an average inference time of **0.0686 ms** per prediction by optimizing model serialization (`joblib`) and utilizing an asynchronous FastAPI serving layer.
-* **Precision Targeting:** Handled severe class imbalance (97% healthy / 3% failure) using balanced class weights, achieving **91% Precision** to minimize costly false alarms on the factory floor.
+## Prerequisites
+- Python 3.12
+- Conda or virtualenv (optional but recommended)
+- Docker (optional, for containerized run)
 
-## 💻 Tech Stack
-* **Core:** Python 3.12
-* **Data Engineering:** `pandas`, `numpy`
-* **Machine Learning:** `scikit-learn` (Random Forest Classifier)
-* **Model Serving:** FastAPI, `uvicorn`, Pydantic
-* **DevOps & Deployment:** Docker
+## Quick Start (Local Python)
+1. Clone and enter the project:
+```bash
+git clone <your-repo-url>
+cd predictive_maintenance_project
+```
 
-## 🏗️ Architecture
-1. **ETL (`jupyter notebook`):** Raw sensor data is ingested, cleaned, and engineered. Identifier columns are dropped to prevent target leakage.
-2. **Model Training:** A Random Forest classifier is trained to detect complex, non-linear failure patterns.
-3. **Inference API (`src/api.py`):** A FastAPI service loads the serialized model on startup and exposes a `/predict` endpoint that computes engineered features on the fly.
-4. **Containerization (`Dockerfile`):** The entire application is packaged into an isolated environment for reliable deployment.
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
 
-## 🚀 How to Run Locally
+3. Ensure trained model exists:
+- This repo already includes `models/rf_model.joblib`.
+- If you retrain, export the same artifact format (`model` + `features`) to `models/rf_model.joblib`.
 
-1. **Clone the repository:**
-   ```bash
-   git clone [https://github.com/yourusername/predictive-maintenance-pipeline.git](https://github.com/yourusername/predictive-maintenance-pipeline.git)
-   cd predictive-maintenance-pipeline
-Build the Docker container:
+4. Run API:
+```bash
+uvicorn src.api:app --host 0.0.0.0 --port 8000
+```
 
-Bash
+5. Test API docs:
+- Open: `http://localhost:8000/docs`
+
+## Run with Docker
+1. Build image:
+```bash
 docker build -t predictive-maintenance-api .
-Run the container:
+```
 
-Bash
+2. Run container:
+```bash
 docker run -d -p 8000:8000 predictive-maintenance-api
-Test the API:
-Navigate to http://localhost:8000/docs to view the interactive Swagger UI. You can send a test POST request with dummy sensor data to see real-time predictions.
+```
 
+3. Verify service:
+- Health check: `GET http://localhost:8000/`
+- Swagger UI: `http://localhost:8000/docs`
 
----
+## API Contract
+### `POST /predict`
+Request body:
+```json
+{
+   "Air_temperature_K": 298.1,
+   "Process_temperature_K": 308.6,
+   "Rotational_speed_rpm": 1551,
+   "Torque_Nm": 42.8,
+   "Tool_wear_min": 0,
+   "Type_L": 0,
+   "Type_M": 1
+}
+```
+
+Response:
+```json
+{
+   "machine_status": "Healthy",
+   "failure_probability": "0.00%",
+   "sensor_data_processed": true
+}
+```
+
+## Reproducibility Notes
+- **Raw dataset** is included locally at `data/ai4i2020_raw.csv` for offline use and reproducibility.
+- ETL script can be re-run to regenerate both raw and processed datasets:
+  ```bash
+  python src/etl.py
+  ```
+- Processed dataset is saved to `data/processed_machine_data.csv` and used by the training notebook.
+- The API expects a serialized artifact at `models/rf_model.joblib` containing:
+   - `model`: trained estimator
+   - `features`: ordered feature list used during training
+
+## Next Improvements
+- Add automated tests for `/predict` and model artifact validation.
+- Export notebook training workflow into a standalone Python training script for CI use.
